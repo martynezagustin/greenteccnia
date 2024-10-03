@@ -1,0 +1,21 @@
+const express = require("express")
+const router = express.Router()
+const authMiddleware = require("../middlewares/userMiddlewares/authMiddleware")
+const userController = require("../controllers/userController")
+const passwordValidator = require("../middlewares/userMiddlewares/passwordMiddleware")
+const passwordUpdatedValidator = require("../middlewares/userMiddlewares/passwordUpdatedMiddleware")
+const verifyTwoFA = require("../middlewares/userMiddlewares/2FAVerifyMiddleware")
+const verifyRegistration2FA = require("../middlewares/userMiddlewares/2FAActivateUser")
+
+router.post("/register", passwordValidator, userController.registerUser)
+router.post("/verify-register", verifyRegistration2FA)
+router.post("/login", userController.loginUser)
+router.post("/verify-2fa", verifyTwoFA)
+router.post("/logout", authMiddleware, userController.logoutUser)
+router.get("/:userId", authMiddleware, userController.getUserInfo)
+router.get("/:userId/logs", authMiddleware, userController.getLogs)
+router.put("/:userId/update", authMiddleware, userController.updateUser)
+router.delete("/:userId/delete", authMiddleware, userController.deleteUser)
+router.put("/:userId/update-password", passwordUpdatedValidator, authMiddleware, userController.updatePassword)
+
+module.exports = router
