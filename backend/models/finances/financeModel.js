@@ -12,7 +12,7 @@ const FinanceSchema = new mongoose.Schema({
     //acá están los egresos, pertenecientes al flujo de caja
     expenses: [{
         concept: String,
-        date: { type: Date, default: Date.now },
+        date: { type: Date, default: Date.now, required: true },
         amount: Number
     }],
     //acá están los activos, pertenecientes al patrimonio

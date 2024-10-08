@@ -1,12 +1,12 @@
 const Finance = require("../../models/finances/financeModel")
 const Enterprise = require("../../models/enterpriseModel")
-const { addItemToNetWorth, getOptionsForMonth, calculateNetWorth } = require("../handlers/handlersToFinance")
+const { addItemToNetWorth, getOptionsForMonth, calculateNetWorth, deleteItemToNetWorth, updateItemToNetWorth } = require("../handlers/handlersToFinance")
 
 const passiveController = {
     //add pasivos
     addPassive: async function (req, res) {
         try {
-            addItemToNetWorth(req, res, "liabilities", "Pasivo corriente", "Pasivo no corriente", "Pasivo contingente")
+            addItemToNetWorth(req, res, "liabilities", "Añadido de pasivo", "El pasivo ha sido añadido con éxito.", "Pasivo corriente", "Pasivo no corriente", "Pasivo contingente")
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error: " + error })
         }
@@ -37,7 +37,7 @@ const passiveController = {
             const start = new Date(startDate)
             const end = new Date(endDate)
             end.setUTCHours(23, 59, 59, 999)
-            const validTypes = ["Pasivo corriente", "Pasivo no corriente", "Pasivos contingentes"]
+            const validTypes = ["Pasivo corriente", "Pasivo no corriente", "Pasivo contingente"]
             if (!validTypes.includes(typeAccount)) {
                 return res.status(404).json({ message: "El campo ingresado como tipo de cuenta no es disponible." })
             }
@@ -120,7 +120,7 @@ const passiveController = {
             const actualDate = new Date()
             const currentMonth = actualDate.getMonth()
             const currentYear = actualDate.getFullYear()
-            const currentDate = actualDate.getUTCDate()
+            const currentDate = actualDate.getDate()
 
             const filteredLiabilitiesByCurrentDate = financeEnterprise.liabilities.filter((passive) => {
                 const passiveDate = new Date(passive.date)
@@ -157,31 +157,7 @@ const passiveController = {
     //actualizar pasivo
     updatePassive: async function (req, res) {
         try {
-            const { typeAccount, date, amount, details, provider } = req.body
-            const { enterpriseId, passiveId } = req.params
-            const enterprise = await Enterprise.findById(enterpriseId)
-            if (!enterprise) {
-                return res.status(404).json({ message: "No se ha encontrado la empresa" })
-            }
-            const financeEnterprise = await Finance.findOne({ enterpriseId })
-            if (!financeEnterprise) {
-                return res.status(404).json({ message: "No se ha encontrado el esquema de finanzas de la empresa." })
-            }
-            const passive = financeEnterprise.liabilities.find((passive) => passive._id.toString() === passiveId)
-            if (!passive) {
-                return res.status(404).json({ message: "No se ha encontrado el pasivo." })
-            }
-            const validTypes = ["Pasivo corriente", "Pasivo no corriente", "Pasivo contingente"]
-            if (!validTypes.includes(typeAccount)) {
-                return res.status(400).json({ message: "El campo ingresado como tipo de cuenta no es disponible." })
-            }
-            const passiveUpdate = await Finance.findOneAndUpdate({ enterpriseId, "liabilities._id": passiveId }, { $set: { "liabilities.$.typeAccount": typeAccount, "liabilities.$.date": date, "liabilities.$.amount": amount, "liabilities.$.details": details, "liabilities.$.provider": provider } }, { new: true })
-            if (!passiveUpdate) {
-                return res.status(404).json({ message: "No se ha podido actualizar el pasivo." })
-            }
-            calculateNetWorth(financeEnterprise)
-            const updatedPassive = activeUpdate.liabilities.find((passive) => passive._id.toString() === passiveId)
-            res.json(updatedPassive)
+            updateItemToNetWorth(req, res, "liabilities", "Actualización de pasivo", "El pasivo se actualizó exitosamente", "Pasivo corriente", "Pasivo no corriente", "Pasivo contingente")
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
         }
@@ -189,24 +165,7 @@ const passiveController = {
     //eliminar pasivo
     deletePassive: async function (req, res) {
         try {
-            const { enterpriseId, passiveId } = req.params
-            const enterprise = await Enterprise.findById(enterpriseId)
-            if (!enterprise) {
-                return res.status(404).json({ message: "No se ha encontrado la empresa." })
-            }
-            const financeEnterprise = await Finance.findOne({ enterpriseId })
-            if (!financeEnterprise) {
-                return res.status(404).json({ message: "No se ha encontrado el esquema de finanzas de la empresa." })
-            }
-            const passive = financeEnterprise.liabilities.id(passiveId)
-            if (!passive) {
-                return res.status(404).json({ message: "No se ha encontrado el pasivo." })
-            }
-            financeEnterprise.liabilities.pull(passiveId)
-            calculateNetWorth(financeEnterprise)
-            await financeEnterprise.save()
-            await enterprise.save()
-            res.json({ message: "Eliminado exitosamente." })
+            deleteItemToNetWorth(req, res, "liabilities", "Eliminado de pasivo", "El pasivo se ha eliminado exitosamente.")
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error: " + error })
         }

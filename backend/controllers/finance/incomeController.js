@@ -19,7 +19,6 @@ const incomeController = {
             if (!financeEnterprise) {
                 return res.status(404).json({ message: "No se ha encontrado el esquema de finanzas de la empresa." })
             }
-            console.log(financeEnterprise.cashFlow);
             res.json(financeEnterprise.incomes)
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
@@ -112,7 +111,7 @@ const incomeController = {
             const actualDate = new Date()
             const currentMonth = actualDate.getMonth()
             const currentYear = actualDate.getFullYear()
-            const currentDate = actualDate.getUTCDate()
+            const currentDate = actualDate.getDate()
 
             const filteredIncomesByCurrentDate = financeEnterprise.incomes.filter((income) => {
                 const incomeDate = new Date(income.date)
@@ -149,7 +148,7 @@ const incomeController = {
     //actualizar ingreso
     updateIncome: async function (req, res) {
         try {
-            updateItemToCashFlow(req,res, "incomes", "Actualización de ingreso", "El ingreso se ha actualizado exitosamente.")
+            updateItemToCashFlow(req,res, "incomes", "Actualización de ingreso", "El ingreso se actualizó exitosamente.")
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
         }

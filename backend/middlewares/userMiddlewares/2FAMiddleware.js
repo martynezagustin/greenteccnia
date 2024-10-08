@@ -10,8 +10,13 @@ const sendTwoFACode = async function (email, code) {
               <p>Por razones de seguridad, te recomendamos no compartir con nadie este código de autenticación. Muchas gracias y buen inicio de sesión.`
     }
     try {
-        await transporter.sendMail(mailOptions)
-        console.log("2FA enviado.");
+        await transporter.sendMail(mailOptions, (error, info) => {
+            if(error){
+                return console.log("Ocurrió un error: " + error);
+                
+            }
+        })
+        console.log("2FA enviado. ", info.response);
     } catch (error) {
         console.error("Error al enviar el correo: " + error);
     }

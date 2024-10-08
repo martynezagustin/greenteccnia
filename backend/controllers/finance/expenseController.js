@@ -107,7 +107,8 @@ const expenseController = {
             const actualDate = new Date()
             const currentMonth = actualDate.getMonth()
             const currentYear = actualDate.getFullYear()
-            const currentDate = actualDate.getUTCDate()
+            const currentDate = actualDate.getDate()
+            console.log(currentDate);
 
             const filteredExpensesByCurrentDate = financeEnterprise.expenses.filter((expense) => {
                 const expenseDate = new Date(expense.date)
@@ -144,7 +145,7 @@ const expenseController = {
     //actualizar egreso
     updateExpense: async function (req, res) {
         try {
-            updateItemToCashFlow(req,res,"expenses","Actualización de egreso", "El egreso se ha actualizado correctamente.")
+            updateItemToCashFlow(req,res,"expenses", "Actualización de egreso", "El egreso se actualizó exitosamente.")
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
         }

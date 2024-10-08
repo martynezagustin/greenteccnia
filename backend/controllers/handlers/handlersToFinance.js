@@ -16,8 +16,8 @@ async function addItemToCashFlow(req, res, elements, event, details) {
         }
         financeEnterprise[elements].push({ concept: concept, date: date, amount: amount })
         financeEnterprise.logsData.push(({ event: event, details: details }))
-        saveData(financeEnterprise, enterprise)
         calculateCashFlow(financeEnterprise)
+        await saveData(financeEnterprise, enterprise)
         res.json(financeEnterprise)
     } catch (error) {
         return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
@@ -34,12 +34,6 @@ async function deleteItemToCashFlow(req, res, elements, event, details) {
     if (!financeEnterprise) {
         return res.status(404).json({ message: "No se ha encontrado el esquema de finanzas de la empresa." })
     }
-    let itemToRemove
-    if (elements === "incomes") {
-        itemToRemove = financeEnterprise.incomes.id(elementId)
-    } else if (elements === "expenses") {
-        itemToRemove = financeEnterprise.expenses.id(elementId)
-    }
     const element = financeEnterprise[elements].id(elementId)
     if (!element) {
         return res.status(404).json({ message: "No se ha encontrado el item." })
@@ -52,80 +46,79 @@ async function deleteItemToCashFlow(req, res, elements, event, details) {
     }
     financeEnterprise.logsData.push({ event: event, details: details })
 
-    calculateCashFlow(financeEnterprise)
-    await financeEnterprise.save()
-    await enterprise.save()
+    await saveData(financeEnterprise, enterprise)
     res.json({ message: "Eliminado exitosamente." })
 }
 //actualizar un item del flujo de caja
 async function updateItemToCashFlow(req, res, elements, event, details) {
-    const { concept, date, amount } = req.body
-    const { enterpriseId, elementId } = req.params
-    const enterprise = await Enterprise.findById(enterpriseId)
-    if (!enterprise) {
-        return res.status(404).json({ message: "No se ha encontrado la empresa" })
-    }
-    const financeEnterprise = await Finance.findOne({ enterpriseId })
-    if (!financeEnterprise) {
-        return res.status(404).json({ message: "No se ha encontrado el esquema de finanzas de la empresa." })
-    }
-    const element = financeEnterprise[elements].find((element) => element._id.toString() === elementId)
+    try {
+        const { concept, date, amount } = req.body
+        const { enterpriseId, elementId } = req.params
+        const enterprise = await Enterprise.findById(enterpriseId)
+        if (!enterprise) {
+            return res.status(404).json({ message: "No se ha encontrado la empresa" })
+        }
+        let financeEnterprise = await Finance.findOne({ enterpriseId })
+        if (!financeEnterprise) {
+            return res.status(404).json({ message: "No se ha encontrado el esquema de finanzas de la empresa." })
+        }
+        const element = financeEnterprise[elements].find((element) => element._id.toString() === elementId)
 
-    if (!element) {
-        return res.status(404).json({ message: "No se ha encontrado el item." })
-    }
-    if (elements === "incomes") {
-        const incomeUpdate = await Finance.findOneAndUpdate({ enterpriseId, "incomes._id": elementId },
-            { $set: { "incomes.$.concept": concept, "incomes.$.date": date, "incomes.$.amount": amount } },
+        if (!element) {
+            return res.status(404).json({ message: "No se ha encontrado el item." })
+        }
+        const updateData = {};
+
+        if (concept) updateData[`${elements}.$.concept`] = concept;
+        if (date) updateData[`${elements}.$.date`] = date;
+        if (amount) updateData[`${elements}.$.amount`] = amount;
+
+        //actualizar activo o pasivo
+        const updatedItemToCashFlow = await Finance.findOneAndUpdate(
+            { enterpriseId, [`${elements}._id`]: elementId },
+            { $set: updateData },
             { new: true }
         )
-        if (!incomeUpdate) {
-            return res.status(404).json({ message: "No se ha podido actualizar el ingreso." })
+        if (!updatedItemToCashFlow) {
+            return res.status(404).json({ message: "No se ha podido actualizar el item." })
         }
-        await saveAll()
-        const updatedElement = incomeUpdate[elements].find((element) => element._id.toString() === elementId)
-        return res.json(updatedElement)
-    } else if (elements === "expenses") {
-        const expenseUpdate = await Finance.findOneAndUpdate({ enterpriseId, "expenses._id": elementId },
-            { $set: { "expenses.$.concept": concept, "expenses.$.date": date, "expenses.$.amount": amount } },
-            { new: true }
-        )
-        if (!expenseUpdate) {
-            return res.status(404).json({ message: "No se ha podido actualizar el egreso." })
-        }
-        await saveAll()
-        const updatedElement = expenseUpdate[elements].find((element) => element._id.toString() === elementId)
-        return res.json(updatedElement)
-    }
-    async function saveAll() {
+        financeEnterprise = await Finance.findOne({ enterpriseId })
+        const newCashFlow = calculateCashFlow(financeEnterprise)
+        financeEnterprise.cashFlow.cashFlow = newCashFlow
+        console.log(financeEnterprise.cashFlow);
+
+        //guardar el log
         financeEnterprise.logsData.push({ event: event, details: details })
-        calculateCashFlow(financeEnterprise)
-        await financeEnterprise.save()
-        await enterprise.save()
+
+        await saveData(financeEnterprise, enterprise)
+        const updatedItem = updatedItemToCashFlow[elements].find(el => el._id.toString() === elementId)
+        res.json(updatedItem)
+    } catch (error) {
+
     }
 }
 //handle para manejar proyecciones de flujo de caja
-async function calculateProjectedCashFlow(res, startDate, endDate, averageNumber, financeEnterprise, period) {
+async function calculateProjectedCashFlowOrNetWorth(res, startDate, endDate, positiveValues, negativeValues, averageNumber, financeEnterprise, period, cashFlowOrNetWorth) {
     const typePeriod = period
-    const filteredIncomes = financeEnterprise.incomes.filter((income) => {
-        const incomeDate = new Date(income.date)
-        return incomeDate >= startDate && incomeDate <= endDate
+    const filteredPositiveValues = financeEnterprise[positiveValues].filter((element) => {
+        const elementDate = new Date(element.date)
+        return elementDate >= startDate && elementDate <= endDate 
     })
-    const filteredExpenses = financeEnterprise.expenses.filter((expense) => {
-        const expenseDate = new Date(expense.date)
-        return expenseDate >= startDate && expenseDate <= endDate
+    const filteredNegativeValues = financeEnterprise[negativeValues].filter((element) => {
+        const elementDate = new Date(element.date)
+        return elementDate >= startDate && elementDate <= endDate
     })
+    console.log(filteredNegativeValues, filteredPositiveValues)
+    const totalPositiveValues = filteredPositiveValues.reduce((acc, currentValue) => acc + currentValue.amount, 0)
+    const totalNegativeValues = filteredNegativeValues.reduce((acc, currentValue) => acc + currentValue.amount, 0)
 
-    const totalIncomes = filteredIncomes.reduce((acc, currentValue) => acc + currentValue.amount, 0)
-    const totalExpenses = filteredExpenses.reduce((acc, currentValue) => acc + currentValue.amount, 0)
-
-    const averageIncomes = totalIncomes / averageNumber
-    const averageExpenses = totalExpenses / averageNumber
-    const projectedCashFlow = averageIncomes - averageExpenses
-    return res.json({ message: `Proyección del flujo de caja para el próximo ${typePeriod}: $${projectedCashFlow.toFixed(2)}` })
+    const averagePositiveValues = totalPositiveValues / averageNumber
+    const averageNegativeValues = totalNegativeValues / averageNumber
+    const projectedCashFlowOrNetWorth = averagePositiveValues - averageNegativeValues
+    return res.json({ message: `$${projectedCashFlowOrNetWorth.toFixed(2)}` })
 }
 //funtion adds to net worth
-async function addItemToNetWorth(req, res, elements, ...enumTypes) {
+async function addItemToNetWorth(req, res, elements, event, detailsEvent, ...enumTypes) {
     try {
         const { typeAccount, date, amount, details, provider } = req.body
         const { enterpriseId } = req.params
@@ -154,6 +147,7 @@ async function addItemToNetWorth(req, res, elements, ...enumTypes) {
         if (!validTypes.includes(typeAccount)) {
             return res.status(404).json({ message: "El campo ingresado como tipo de cuenta no es disponible." })
         }
+        financeEnterprise.logsData.push({event: event, details: detailsEvent})
         financeEnterprise[elements].push({ typeAccount: typeAccount, date: date, amount: amount, details: details, provider: provider })
         saveData(financeEnterprise, enterprise)
         calculateNetWorth(financeEnterprise)
@@ -162,11 +156,102 @@ async function addItemToNetWorth(req, res, elements, ...enumTypes) {
         return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
     }
 }
+//borrar item del patrimonio neto
+async function deleteItemToNetWorth(req, res, elements, event, details) {
+    try {
+        const { enterpriseId, elementId } = req.params
+        const enterprise = await Enterprise.findById(enterpriseId)
+        if (!enterprise) {
+            return res.status(404).json({ message: "No se ha encontrado la empresa." })
+        }
+        const financeEnterprise = await Finance.findOne({ enterpriseId })
+        if (!financeEnterprise) {
+            return res.status(404).json({ message: "No se ha encontrado el esquema de finanzas de la empresa." })
+        }
+        const element = financeEnterprise[elements].id(elementId)
+        if (!element) {
+            return res.status(404).json({ message: "No se ha encontrado el item." })
+        }
+        if (elements === "actives") {
+            financeEnterprise.actives.pull(elementId)
+        } else if (elements === "liabilities") {
+            financeEnterprise.liabilities.pull(elementId)
+        } else {
+            return res.status(400).json({ message: "No se ingresó un parámetro correspondiente." })
+        }
+        financeEnterprise.logsData.push({ event: event, details: details })
+
+        saveData(financeEnterprise, enterprise)
+        return res.json({ message: "Eliminado exitosamente." })
+    } catch (error) {
+        return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
+    }
+}
+//actualizar item del patrimonio neto
+async function updateItemToNetWorth(req, res, elements, event, details, ...enumTypes) {
+    try {
+        const { typeAccount, date, amount, details, provider } = req.body
+        const { enterpriseId, elementId } = req.params
+        const enterprise = await Enterprise.findById(enterpriseId)
+        if (!enterprise) {
+            return res.status(404).json({ message: "No se ha encontrado la empresa" })
+        }
+        let financeEnterprise = await Finance.findOne({ enterpriseId })
+        if (!financeEnterprise) {
+            return res.status(404).json({ message: "No se ha encontrado el esquema de finanzas de la empresa." })
+        }
+        const element = financeEnterprise[elements].find((element) => element._id.toString() === elementId)
+
+        if (!element) {
+            return res.status(404).json({ message: "No se ha encontrado el item." })
+        }
+        const validTypes = [...enumTypes]
+        if (!validTypes.includes(typeAccount)) {
+            return res.status(400).json({ message: "El campo ingresado como tipo de cuenta no es disponible." })
+        }
+
+        const updateData = {};
+
+        if (typeAccount) updateData[`${elements}.$.typeAccount`] = typeAccount;
+        if (date) updateData[`${elements}.$.date`] = date;
+        if (amount) updateData[`${elements}.$.amount`] = amount;
+        if (details) updateData[`${elements}.$.details`] = details;
+        if (provider) updateData[`${elements}.$.provider`] = provider;
+
+        //actualizar activo o pasivo
+        const updatedItemToNetWorth = await Finance.findOneAndUpdate(
+            { enterpriseId, [`${elements}._id`]: elementId },
+            { $set: updateData },
+            { new: true }
+        )
+        if (!updatedItemToNetWorth) {
+            return res.status(404).json({ message: "No se ha podido actualizar el item." })
+        }
+        financeEnterprise = await Finance.findOne({ enterpriseId })
+        const newNetWorth = calculateNetWorth(financeEnterprise)
+        financeEnterprise.netWorth.netWorth = newNetWorth
+        console.log(financeEnterprise.netWorth);
+
+        //guardar el log
+        financeEnterprise.logsData.push({ event: event, details: details })
+
+        await saveData(financeEnterprise, enterprise)
+        const updatedItem = updatedItemToNetWorth[elements].find(el => el._id.toString() === elementId)
+        res.json({ updatedItem, nw: financeEnterprise.netWorth })
+
+    }
+    catch (error) {
+        return res.status(500).json({ error: "Ha ocurrido un error: " + error })
+    }
+}
 //calcular patrimonio neto
 function calculateNetWorth(finance) {
     finance.netWorth.totalActives = finance.actives.reduce((accumulator, currentValue) => accumulator + currentValue.amount, 0)
+    console.log(finance.netWorth.totalActives);
+
     finance.netWorth.totalLiabilities = finance.liabilities.reduce((accumulator, currentValue) => accumulator + currentValue.amount, 0)
     finance.netWorth.netWorth = finance.netWorth.totalActives - finance.netWorth.totalLiabilities
+    console.log(finance.netWorth.netWorth)
 }
 //calcular flujo de caja
 function calculateCashFlow(finance) {
@@ -199,6 +284,7 @@ function calculateNetValuesByCurrentDate(finance, currentDate, currentMonth, cur
         const negativeDate = new Date(negative.date)
         return negativeDate.getUTCDate() === currentDate && negativeDate.getMonth() === currentMonth && negativeDate.getFullYear() === currentYear
     })
+    console.log(currentDate)
     const totalPositiveValuesFiltered = filteredPositiveValues.reduce((accumulator, currentValue) => accumulator + currentValue.amount, 0)
     const totalNegativeValuesFiltered = filteredNegativeValues.reduce((accumulator, currentValue) => accumulator + currentValue.amount, 0)
     const getNetValuesByCurrentDate = totalPositiveValuesFiltered - totalNegativeValuesFiltered
@@ -246,4 +332,4 @@ async function saveData(financeEnterprise, enterprise) {
     await enterprise.save()
 }
 
-module.exports = { addItemToCashFlow, deleteItemToCashFlow, updateItemToCashFlow, calculateProjectedCashFlow, addItemToNetWorth, calculateNetWorth, calculateCashFlow, calculateNetValuesByCurrentMonth, calculateNetValuesByCurrentDate, calculateNetValuesByCurrentYear, getOptionsForMonth, saveData }
+module.exports = { addItemToCashFlow, deleteItemToCashFlow, updateItemToCashFlow, calculateProjectedCashFlowOrNetWorth, addItemToNetWorth, deleteItemToNetWorth, updateItemToNetWorth, calculateNetWorth, calculateCashFlow, calculateNetValuesByCurrentMonth, calculateNetValuesByCurrentDate, calculateNetValuesByCurrentYear, getOptionsForMonth, saveData }

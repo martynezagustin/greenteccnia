@@ -1,12 +1,12 @@
 const Finance = require("../../models/finances/financeModel")
 const Enterprise = require("../../models/enterpriseModel")
-const {addItemToNetWorth, getOptionsForMonth, calculateNetWorth} = require("../handlers/handlersToFinance")
+const { addItemToNetWorth, getOptionsForMonth, calculateNetWorth, deleteItemToNetWorth, updateItemToNetWorth } = require("../handlers/handlersToFinance")
 
 const activeController = {
     //add activos
     addActive: async function (req, res) {
         try {
-            addItemToNetWorth(req,res,"actives", "Activo corriente", "Activo no corriente", "Activo intangible", "Otro activos no corrientes")
+            addItemToNetWorth(req, res, "actives", "Añadido de activo", "El activo se añadió exitosamente.", "Activo corriente", "Activo no corriente", "Activo intangible", "Otro activo no corriente")
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
         }
@@ -120,7 +120,7 @@ const activeController = {
             const actualDate = new Date()
             const currentMonth = actualDate.getMonth()
             const currentYear = actualDate.getFullYear()
-            const currentDate = actualDate.getUTCDate()
+            const currentDate = actualDate.getDate()
 
             const filteredActivesByCurrentDate = financeEnterprise.actives.filter((active) => {
                 const activeDate = new Date(active.date)
@@ -137,7 +137,7 @@ const activeController = {
             const { enterpriseId } = req.params
             const enterprise = await Enterprise.findById(enterpriseId)
             if (!enterprise) {
-                return res.status(404).json({ message: "No se ha enccontrado le rmpresa." })
+                return res.status(404).json({ message: "No se ha encontrado la empresa." })
             }
             const financeEnterprise = await Finance.findOne({ enterpriseId })
             if (!financeEnterprise) {
@@ -157,33 +157,7 @@ const activeController = {
     //actualizar activo
     updateActive: async function (req, res) {
         try {
-            const { typeAccount, date, amount, details, provider } = req.body
-            const { enterpriseId, activeId } = req.params
-            const enterprise = await Enterprise.findById(enterpriseId)
-            if (!enterprise) {
-                return res.status(404).json({ message: "No se ha encontrado la empresa" })
-            }
-            const financeEnterprise = await Finance.findOne({ enterpriseId })
-            if (!financeEnterprise) {
-                return res.status(404).json({ message: "No se ha encontrado el esquema de finanzas de la empresa." })
-            }
-            const active = financeEnterprise.actives.find((active) => active._id.toString() === activeId)
-            if (!active) {
-                return res.status(404).json({ message: "No se ha encontrado el activo." })
-            }
-            const validTypes = ["Activo corriente", "Activo no corriente", "Activo intangible", "Otro activo no corriente"]
-            if (!validTypes.includes(typeAccount)) {
-                return res.status(400).json({ message: "El campo ingresado como tipo de cuenta no es disponible." })
-            }
-            const activeUpdate = await Finance.findOneAndUpdate({ enterpriseId, "actives._id": activeId }, { $set: { "actives.$.typeAccount": typeAccount, "actives.$.date": date, "actives.$.amount": amount, "actives.$.details": details, "actives.$.provider": provider } }, { new: true })
-            if (!activeUpdate) {
-                return res.status(404).json({ message: "No se ha podido actualizar el egreso." })
-            }
-            calculateNetWorth(financeEnterprise)
-            financeEnterprise.save()
-            enterprise.save()
-            const updatedActive = activeUpdate.actives.find((active) => active._id.toString() === activeId)
-            res.json(updatedActive)
+            updateItemToNetWorth(req, res, "actives", "Actualización de activo", "El activo se actualizó exitosamente.", "Activo corriente", "Activo no corriente", "Activo intangible", "Otro activo no corriente")
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
         }
@@ -191,24 +165,7 @@ const activeController = {
     //eliminar activo
     deleteActive: async function (req, res) {
         try {
-            const { enterpriseId, activeId } = req.params
-            const enterprise = await Enterprise.findById(enterpriseId)
-            if (!enterprise) {
-                return res.status(404).json({ message: "No se ha encontrado la empresa." })
-            }
-            const financeEnterprise = await Finance.findOne({ enterpriseId })
-            if (!financeEnterprise) {
-                return res.status(404).json({ message: "No se ha encontrado el esquema de finanzas de la empresa." })
-            }
-            const active = financeEnterprise.actives.id(activeId)
-            if (!active) {
-                return res.status(404).json({ message: "No se ha encontrado el activo." })
-            }
-            financeEnterprise.actives.pull(activeId)
-            calculateNetWorth(financeEnterprise)
-            await financeEnterprise.save()
-            await enterprise.save()
-            res.json({ message: "Eliminado exitosamente." })
+            deleteItemToNetWorth(req, res, "actives", "Eliminado de activo", "El activo se eliminó exitosamente.", "Eliminado de activo", "El activo se ha eliminado exitosamente.")
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error: " + error })
         }

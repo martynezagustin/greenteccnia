@@ -1,6 +1,6 @@
 const Finance = require("../../models/finances/financeModel")
 const Enterprise = require("../../models/enterpriseModel")
-const { calculateNetValuesByCurrentMonth, calculateNetValuesByCurrentDate, calculateNetValuesByCurrentYear, calculateProjectedCashFlow } = require("../handlers/handlersToFinance")
+const { calculateNetValuesByCurrentMonth, calculateNetValuesByCurrentDate, calculateNetValuesByCurrentYear, calculateProjectedCashFlowOrNetWorth } = require("../handlers/handlersToFinance")
 
 const cashFlowController = {
     //obtener flujo de caja
@@ -84,7 +84,7 @@ const cashFlowController = {
             const actualDate = new Date()
             const currentMonth = actualDate.getMonth()
             const currentYear = actualDate.getFullYear()
-            const currentDate = actualDate.getUTCDate()
+            const currentDate = actualDate.getDate()
             const cashFlowByCurrentDate = calculateNetValuesByCurrentDate(financeEnterprise, currentDate, currentMonth, currentYear, "incomes", "expenses")
             res.json(cashFlowByCurrentDate)
         } catch (error) {
@@ -124,25 +124,13 @@ const cashFlowController = {
                 return res.status(404).json({ message: "No se ha encontrado el esquema de finanzas de la empresa." })
             }
             const actualDate = new Date()
-            const lastWeekStart = new Date(actualDate.getFullYear(), actualDate.getMonth(), actualDate.getDate() - 7)
-            const lastWeekEnd = new Date(actualDate.getFullYear(), actualDate.getMonth(), actualDate.getDate())
+            const currentYear = actualDate.getFullYear()
+            const currentMonth = actualDate.getMonth()
+            const currentDate = actualDate.getUTCDate()
+            const lastWeekStart = new Date(currentYear, currentMonth, currentDate - 7)
+            const lastWeekEnd = new Date(currentYear, currentMonth, currentDate)
 
-            const filteredIncomesLastWeek = financeEnterprise.incomes.filter((income) => {
-                const incomeDate = new Date(income.date)
-                return incomeDate >= lastWeekStart && incomeDate <= lastWeekEnd
-            })
-            const filteredExpensesLastWeek = financeEnterprise.expenses.filter((expense) => {
-                const expenseDate = new Date(expense.date)
-                return expenseDate >= lastWeekStart && expenseDate <= lastWeekEnd
-            })
-
-            const totalIncomesLastWeek = filteredIncomesLastWeek.reduce((acc, currentValue) => acc + currentValue.amount, 0)
-            const totalExpensesLastWeek = filteredExpensesLastWeek.reduce((acc, currentValue) => acc + currentValue.amount, 0)
-
-            const averageIncomes = totalIncomesLastWeek / 7
-            const averageExpenses = totalExpensesLastWeek / 7
-            const projectedCashFlowInNextDate = averageIncomes - averageExpenses
-            res.json({ message: `Proyección del flujo de caja para el próximo día: $${projectedCashFlowInNextDate.toFixed(2)}` })
+            await calculateProjectedCashFlowOrNetWorth(res, lastWeekStart, lastWeekEnd, "incomes", "expenses", 7, financeEnterprise, "día", "flujo de caja")
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
         }
@@ -163,22 +151,7 @@ const cashFlowController = {
             const startDate = new Date(actualDate.getFullYear(), actualDate.getMonth() - 2, 1)
             const endDate = new Date(actualDate.getFullYear(), actualDate.getMonth() + 1, 1)
 
-            const filteredIncomesLastMonths = financeEnterprise.incomes.filter((income) => {
-                const incomeDate = new Date(income.date)
-                return incomeDate >= startDate && incomeDate <= endDate
-            })
-            const filteredExpensesLastMonths = financeEnterprise.expenses.filter((expense) => {
-                const expenseDate = new Date(expense.date)
-                return expenseDate >= startDate && expenseDate <= endDate
-            })
-
-            const totalIncomesLastWeek = filteredIncomesLastMonths.reduce((acc, currentValue) => acc + currentValue.amount, 0)
-            const totalExpensesLastWeek = filteredExpensesLastMonths.reduce((acc, currentValue) => acc + currentValue.amount, 0)
-
-            const averageIncomes = totalIncomesLastWeek / 3
-            const averageExpenses = totalExpensesLastWeek / 3
-            const projectedCashFlowInNextMonth = averageIncomes - averageExpenses
-            res.json({ message: `Proyección del flujo de caja para el próximo mes: $${projectedCashFlowInNextMonth.toFixed(2)}` })
+            await calculateProjectedCashFlowOrNetWorth(res, startDate, endDate, "incomes", "expenses", 3, financeEnterprise, "mes", "flujo de caja")
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
         }
@@ -198,7 +171,7 @@ const cashFlowController = {
             const actualDate = new Date()
             const startDate = new Date(actualDate.getFullYear() - 3, 0, 1)
             const endDate = new Date(actualDate.getFullYear(), 11, 31)
-            await calculateProjectedCashFlow(res,startDate, endDate, 3, financeEnterprise, "año")
+            await calculateProjectedCashFlowOrNetWorth(res, startDate, endDate, "incomes", "expenses", 3, financeEnterprise, "año", "flujo de caja")
         } catch (error) {
             return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
         }
