@@ -1,0 +1,1 @@
+//este es el controlador que entrenará las encuestas con un modelo de IA.
