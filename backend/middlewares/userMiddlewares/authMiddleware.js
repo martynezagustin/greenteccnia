@@ -3,7 +3,6 @@ const User = require("../../models/userModel")
 
 const authMiddleware = (req, res, next) => {
     const token = req.cookies.token
-    console.log("Token?", token)
     if (!token) {
         return res.status(403).json({ message: "Access denied. No token provided." })
     }

@@ -23,6 +23,11 @@ const SurveySchema = new mongoose.Schema({
         username: { type: String },
         position: { type: String },
         date: { type: Date, default: Date.now }
+    },
+    weights: {
+        satisfaction: {type: Number},
+        relationshipWithTeam: {type: Number},
+        workEnvironment: {type: Number}
     }
 }, { timestamps: true })
 
@@ -51,12 +56,17 @@ const ORIGINAL_MAX = 5
 SurveySchema.pre('save', async function (next) {
     try {
         const survey = this
+
+        const Weight = mongoose.model('Weight')
+        const weightEnterprise = await Weight.findOne({enterpriseId: survey.enterpriseId})
         //Los pesos de cada dimensión
         const weights = {
-            relationshipWithTeam: 0.3,
-            satisfaction: 0.5,
-            workEnvironment: 0.2
+            relationshipWithTeam: weightEnterprise ? weightEnterprise.relationshipWithTeam : 0.3,
+            satisfaction: weightEnterprise ? weightEnterprise.satisfaction : 0.5,
+            workEnvironment: weightEnterprise ? weightEnterprise.workEnvironment : 0.2
         }
+
+        console.log('Cómo son los pesos?', weights)
 
         let workEnvironmentScore = 3
 
@@ -64,6 +74,13 @@ SurveySchema.pre('save', async function (next) {
             const WorkEnvironment = mongoose.model('WorkEnvironment')
             const workEnv = await WorkEnvironment.findById(survey.workEnvironment)
             if (workEnv && workEnv.score) workEnvironmentScore = workEnv.score
+        }
+
+        //guardamos los pesos
+        this.weights = {
+            satisfaction: weights.satisfaction,
+            relationshipWithTeam: weights.relationshipWithTeam,
+            workEnvironment: weights.workEnvironment
         }
 
         const clamp = v => Math.min(Math.max(v, 1), ORIGINAL_MAX)

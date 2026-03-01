@@ -17,12 +17,11 @@ const validateCuitOrCuil = require("../handlers/global/validateCuitOrCuil")
 const enterpriseController = {
     addEnterprise: async function (req, res) {
         try {
-            const { userId } = req.params
             const { nameEnterprise, address, description, taxIdentificationNumber, city, stateOrProvince, country, companySize, businessSector, businessType, currency } = req.body
             if (!mongoose.Types.ObjectId.isValid(userId)) {
                 return res.status(404).json({ message: "ID de usuario inválido." })
             }
-            const user = await User.findById(userId)
+            const user = await User.findById(req.user.id)
             if (!user) {
                 return res.status(404).json({ message: "No se ha encontrado tu usuario." })
             }
@@ -64,12 +63,11 @@ const enterpriseController = {
     },
     addSustainabilityOptionsToEnterprise: async function (req, res) {
         try {
-            const { userId } = req.params
             const { dataSustainability, estimatedSavings } = req.body
-            if (!mongoose.Types.ObjectId.isValid(userId)) {
+            if (!mongoose.Types.ObjectId.isValid(req.user.id)) {
                 return res.status(404).json({ message: "ID de usuario inválido." })
             }
-            const user = await User.findById(userId)
+            const user = await User.findById(req.user.id)
             if (!user) return res.status(404).json({ message: "No se ha encontrado el usuario." })
             const enterpriseIdStringify = req.cookies.enterpriseId
             const enterpriseParse = JSON.parse(enterpriseIdStringify)
@@ -91,12 +89,11 @@ const enterpriseController = {
     },
     addCertificationsAccomplished: async function (req, res, next) {
         try {
-            const { userId } = req.params
             const { certificationsAccomplished } = req.body
             if (!mongoose.Types.ObjectId.isValid(userId)) {
                 return res.status(404).json({ message: "ID de usuario inválido." })
             }
-            const user = await User.findById(userId)
+            const user = await User.findById(req.user.id)
             if (!user) return res.status(404).json({ message: "No se ha encontrado el usuario." })
             const enterpriseIdStringify = req.cookies.enterpriseId
             const enterpriseParse = JSON.parse(enterpriseIdStringify)
@@ -127,13 +124,12 @@ const enterpriseController = {
     },
     addInitialsSustainableObjective: async function (req, res) {
         try {
-            const { userId } = req.params
             const { title, description, date, status, impact, relationWithODS } = req.body
             console.log(req.body)
-            if (!mongoose.Types.ObjectId.isValid(userId)) {
+            if (!mongoose.Types.ObjectId.isValid(req.user.id)) {
                 return res.status(404).json({ message: "ID de usuario inválido." })
             }
-            const user = await User.findById(userId)
+            const user = await User.findById(req.user.id)
             if (!user) return res.status(404).json({ message: "El usuario no existe." })
             const enterpriseIdStringify = req.cookies.enterpriseId
             console.log("Id de empresa?", enterpriseIdStringify)

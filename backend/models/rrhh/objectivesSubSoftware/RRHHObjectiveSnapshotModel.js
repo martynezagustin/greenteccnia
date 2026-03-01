@@ -5,22 +5,15 @@ const crypto = require('crypto')
 const RRHHObjectiveSnapshotSchema = new mongoose.Schema({
     objectiveId: { type: mongoose.Schema.Types.ObjectId, ref: 'RRHHObjective' },
     enterpriseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Enterprise' },
-    ownerType: String,
-    ownerId: mongoose.Schema.Types.ObjectId, //esto te permitirá filtrar además, responsables en el tiempo, etc
     status: String,
     riskLevel: String,
-    progress: {
-        taskProgress: { type: Number, default: 0 },
-        kpiProgress: { type: Number, default: 0 },
-        score: { type: Number, default: 0 }
-    },
-    kpi: { unit: String, initialValue: Number, targetValue: Number, currentValue: Number, tolerance: Number, formula: String },
+    progress: { type: Number, default: 0 },
     diff: {
         taskGrowth: Number,
         kpiGrowth: Number,
         scoreGrowth: Number
     },
-    reason: { type: String, enum: ['UPDATE', 'CREATION', 'TASK_CHANGE', 'KPI_CHANGE', 'STATUS_CHANGE', 'CRON', 'MANUAL'] } //el snapshot se toma cada tanto, permite flexibilizar la toma de información, decisiones y hacerlo más robusto y escalable
+    reason: { type: String, enum: ['UPDATE', 'CREATION', 'TASK_CHANGE', 'TASK_CREATION', 'KPI_CHANGE', 'STATUS_CHANGE', 'CRON', 'MANUAL', 'STARTED'] } //el snapshot se toma cada tanto, permite flexibilizar la toma de información, decisiones y hacerlo más robusto y escalable
 }, { timestamps: true })
 
 
@@ -35,8 +28,7 @@ RRHHObjectiveSnapshotSchema.pre('save', async function (next) {
 
     const payload = {
         objectiveId: this.objectiveId,
-        score: this.progress.score,
-        kpiValue: this.kpi.currentValue,
+        progress: this.progress,
         reason: this.reason,
         createdAt: this.createdAt
     }

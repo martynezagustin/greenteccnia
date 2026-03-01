@@ -1,19 +1,22 @@
 const Evidence = require('../../../models/rrhh/objectivesSubSoftware/evidenceModel')
 
 const evidenceService = {
-    addEvidence: async function (objectiveId, enterpriseId, data, user) {
+    createEvidence: async function ({objectiveId, file, uploadedBy}) {
         try {
-            if (!objectiveId) return { error: 'No existe el ID del objetivo', error: 404 }
+            if (!objectiveId) return { error: 'No existe el ID del objetivo', code: 404 }
             const newEvidence = new Evidence({
-                enterpriseId: enterpriseId,
-                objectiveId: objectiveId,
-                type: data.type,
-                fileUrl: !data.fileUrl ? null : data.fileUrl,
-                uploadedBy: user._id
+                objectiveId,
+                uploadedBy,
+                originalName: file.originalName,
+                filename: file.filename,
+                mimeType: file.mimeType,
+                size: file.size,
+                path: file.path
             })
             await newEvidence.save()
+            return newEvidence
         } catch (error) {
-            return { error: `Ha ocurrido un error de servidor: ${error}`, error: 500 }
+            return { error: `Ha ocurrido un error de servidor: ${error}`, code: 500 }
         }
     },
     getEvidence: async function (evidenceId, objectiveId, enterpriseId) {
@@ -41,6 +44,15 @@ const evidenceService = {
             return updateEvidence
         } catch (error) {
             return { error: `Ha ocurrido un error de servidor: ${error}`, error: 500 }
+        }
+    },
+    deleteEvidence: async function (evidenceId, objectiveId, enterpriseId){
+        try {
+            const deletedEvidence = await Evidence.findOneAndDelete({_id: evidenceId, objectiveId: objectiveId, enterpriseId: enterpriseId})
+            if(!deletedEvidence) return {error: 'No se ha encontrado la evidencia', code: 404}
+            return deletedEvidence
+        } catch (error) {
+                        return { error: `Ha ocurrido un error de servidor: ${error}`, error: 500 }
         }
     }
 }

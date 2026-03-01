@@ -25,4 +25,10 @@ function validatePeriod(currentPeriod) {
     return { startDate, endDate }
 }
 
-module.exports = { validatePeriod }
+function addDaysToRevision(date,days){
+    const now = new Date(date)
+    const result = now.setDate(now.getDate() + days)
+    return result
+}
+
+module.exports = { validatePeriod, addDaysToRevision }

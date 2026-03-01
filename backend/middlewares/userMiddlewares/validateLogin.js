@@ -1,7 +1,6 @@
 const Device = require("../../models/security/deviceModel")
 const LogUser = require("../../models/logs/logUserModel")
 const jwt = require("jsonwebtoken")
-const axios = require("axios")
 
 const validateLogin = async function (req, res, user) {
     try {

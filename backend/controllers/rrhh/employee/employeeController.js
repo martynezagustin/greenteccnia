@@ -190,7 +190,7 @@ const employeeController = {
                 { $group: { _id: null, averageScore: { $avg: "$totalScore" } } }
             ])
 
-            const punctualityHistory = await PunctualityHistory.findOne({employeeId: employee._id})
+            const punctualityHistory = await PunctualityHistory.findOne({ employeeId: employee._id })
 
             const averageScore = averageScoreAggregation.length > 0 ? parseFloat(averageScoreAggregation[0].averageScore.toFixed(2)) : null
 
@@ -278,7 +278,7 @@ const employeeController = {
 
             return res.status(200).json({
                 employee,
-                punctualityIndex: punctualityHistory.generalIndexNumber,
+                punctualityIndex: punctualityHistory ? punctualityHistory.generalIndexNumber : null,
                 alertAssist: alertAssist,
                 surveyGreen: {
                     surveyHistory: surveyHistory,
@@ -424,7 +424,8 @@ const employeeController = {
             const rrhhEnterprise = await RRHH.findOne({ enterpriseId: enterprise._id })
             if (!rrhhEnterprise) return res.status(404).json({ message: "No se ha encontrado el módulo de Recursos Humanos de la empresa." })
             const employees = await Employee.countDocuments({
-                rrhhEnterprise: rrhhEnterprise._id
+                rrhhEnterprise: rrhhEnterprise._id,
+                isActive: true
             })
             if (employees === 0) return res.status(404).json({ message: "No se han encontrado empleados." })
             const employeesFilter = await getGenderParity(enterpriseId, rrhhEnterprise, 'generic')
@@ -579,8 +580,8 @@ const employeeController = {
             //filtramos las asistencias por eficiencia
             assists.forEach((a) => {
                 const punctuality = a.punctualityStatus
-                if(punctuality !== null){
-                    totalAssistsPerPunctuality[punctuality] = (totalAssistsPerPunctuality[punctuality] || 0) + 1 || 0 
+                if (punctuality !== null) {
+                    totalAssistsPerPunctuality[punctuality] = (totalAssistsPerPunctuality[punctuality] || 0) + 1 || 0
                 }
             })
             //filtramos todo el indice de satisfacción laboral

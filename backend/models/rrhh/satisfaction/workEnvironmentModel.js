@@ -17,27 +17,35 @@ const ORIGINAL_MAX = 5
 
 WorkEnvironmentSchema.pre('save', async function (next) {
     try {
+        
+        const rawWorkLoad = this.workLoadLevel
+        const rawNoise = this.noiseLevel
+
+        //invertimos la polaridad
+        const invertedWorkLoad = (rawWorkLoad != null) ? (ORIGINAL_MAX + 1) - rawWorkLoad : null //si rawWorkLoad no es nulo, al valor original (5) sumale 1 y restale el level
+        const invertedNoise = (rawNoise != null) ? (ORIGINAL_MAX + 1) - rawNoise : null
+        //lo mismo arriba ☝️
+        
         const fields = [
-            this.workLoadLevel,
-            this.noiseLevel,
+            invertedWorkLoad,
+            invertedNoise,
             this.ergonomics,
             this.temperatureConfort,
             this.airQuality
         ]
-        const validFields = fields.filter(v => v !== undefined && v !== null && typeof v === 'number')
-        console.log("Los fields válidos?", validFields)
+        const validFields = fields.filter(v => v !== undefined && v !== null && typeof v === 'number' && !isNaN(v))
         if (validFields.length > 0) {
-            const total = validFields.reduce((acc, value) => acc + value, 0) / validFields.length
-
-            const scaledScore = (total / ORIGINAL_MAX) * MAX_SCORE
+            const totalSum = validFields.reduce((acc, value) => acc + value, 0)
+            const average = totalSum / validFields.length
+            const scaledScore = (average / ORIGINAL_MAX) * MAX_SCORE
             this.score = parseFloat(scaledScore.toFixed(2))
         } else {
-            this.score = 6
+            this.score = 0
         }
         console.log("El work environment score", this.score)
         next()
     } catch (error) {
-
+        next(error)
     }
 })
 

@@ -20,9 +20,9 @@ const RRHHObjectiveSnapshotService = {
             return { error: `Ha ocurrido un error al crear el snapshot: ${error.message}`, code: 500 }
         }
     },
-    getSnapshotsByObjective: async function (objectiveId, enterpriseId) {
+    getSnapshotsByObjective: async function (objectiveId, enterpriseId, limit) {
         try {
-            const allSnapshots = await RRHHObjectiveSnapshot.find({ objectiveId: objectiveId, enterpriseId: enterpriseId }).sort({ createdAt: -1 })
+            const allSnapshots = await RRHHObjectiveSnapshot.find({ objectiveId: objectiveId, enterpriseId: enterpriseId }).sort({ createdAt: -1 }).limit(limit ? limit : 50).lean()
             if (!allSnapshots || allSnapshots.length === 0) return { error: 'No existen registros de snapshots asociados al objetivo', code: 404 }
             return allSnapshots
         } catch (error) {

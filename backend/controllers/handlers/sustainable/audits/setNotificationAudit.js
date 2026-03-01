@@ -5,7 +5,7 @@ const SustainabilityEnterprise = require("../../../../models/sustainability/sust
 const cron = require("node-cron")
 
 const setNotificationAudit = async () => {
-    cron.schedule('* * * * *', async () => {
+    cron.schedule('0 0 1 * *', async () => {
         try {
             const pendingAudits = await Audit.find({
                 status: "Planificada",

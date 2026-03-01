@@ -51,7 +51,7 @@ async function getGenderParity(enterpriseId, rrhhEnterprise, type) {
     let totalEmployees
     switch (type) {
         case 'generic':
-            employees = await Employee.find({ rrhhEnterprise: rrhhEnterprise._id, 'jobInfo.contractEndDate': null })
+            employees = await Employee.find({ rrhhEnterprise: rrhhEnterprise._id, 'jobInfo.contractEndDate': null, isActive: true })
             employees.forEach((e) => {
                 const gender = e.personalInfo.gender
                 totalGender[gender] = (totalGender[gender] || 0) + 1

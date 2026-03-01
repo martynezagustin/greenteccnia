@@ -111,7 +111,7 @@ const userController = {
         const { username, password } = req.body
         try {
             const userToLogin = await User.findOne({ username: username })
-            if (!username.length || !password.length) return res.status(409).json({ message: "Hay campos vacíos, vuelve a intentarlo." })
+            if (!username || !password) return res.status(400).json({ message: "Hay campos vacíos, vuelve a intentarlo." })
             if (!userToLogin) {
                 return res.status(404).json({ message: "El usuario no existe." })
             }
@@ -188,7 +188,7 @@ const userController = {
                     browser: newSuspiciousLogin.browser,
                     deviceType: newSuspiciousLogin.device,
                     os: newSuspiciousLogin.os
-                }), { httpOnly: false, secure: false, sameSite: "Lax", maxAge: 1000 * 60 * 60 })
+                }), { httpOnly: true, secure: true, sameSite: "Lax", maxAge: 1000 * 60 * 60 })
                 console.log(userToLogin)
                 await sendMailOfSuspiciousLogin(userToLogin.email, newSuspiciousLogin, twoFACode)
             }

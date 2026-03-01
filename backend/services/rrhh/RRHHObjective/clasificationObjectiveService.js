@@ -34,7 +34,9 @@ const clasificationObjectiveService = {
             if (!clasifications || clasifications.length === 0) return { error: 'No se han encontrado clasificaciones de objetivos RRHH.', code: 404 }
             return clasifications
         } catch (error) {
-            return { error: `Ha ocurrido un error al crear la clasificación de objetivo RRHH: ${error.message}`, code: 500 }
+            console.error(error);
+            
+            return { error: `Ha ocurrido un error de servidor: ${error.message}`, code: 500 }
         }
     },
     deleteClasification: async function (clasificationId, enterpriseId) {

@@ -1,13 +1,11 @@
-const mongoose = require('mongoose')
-const Enterprise = require('../../../models/enterpriseModel')
-const RRHHObjectiveService = require('../../../services/rrhh/RRHHObjective/RRHHObjectiveService')
-const RRHHObjective = require('../../../models/rrhh/objectivesSubSoftware/RRHHObjectiveModel')
+const RRHHObjectiveService = require('../../../services/rrhh/RRHHObjective/objective/RRHHObjectiveService')
 const { validateEnterprise } = require('../../enterprise/handler/utilEnterprise')
 
 const RRHHObjectiveController = {
     createObjective: async function (req, res, next) {
         try {
             const enterprise = await validateEnterprise(req, res)
+            console.log('Cómo llega el req.body', req.body)
             const objective = await RRHHObjectiveService.createObjective(req.body, req.user, enterprise._id)
             if (objective.error) {
                 return res.status(objective.code).json({ message: objective.error })
@@ -95,6 +93,16 @@ const RRHHObjectiveController = {
             const objective = await RRHHObjectiveService.getLastObjective(enterprise._id)
             if (objective.error) return res.status(objective.code).json({ message: objective.error })
             return res.status(200).json(objective)
+        } catch (error) {
+            next(error)
+        }
+    },
+    printDashboard: async function (req, res, next) {
+        try {
+            const enterprise = await validateEnterprise(req, res)
+            if (enterprise.error) return res.status(enterprise.code).json({ message: enterprise.error })
+            const dashboard = await RRHHObjectiveService.printDashboardObjectives(enterprise._id)
+            return res.status(200).json(dashboard)
         } catch (error) {
             next(error)
         }

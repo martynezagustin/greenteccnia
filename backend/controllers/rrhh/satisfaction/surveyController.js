@@ -26,7 +26,6 @@ const surveyController = {
                 employeeId: employeeData._id,
                 dateSurvey: dateSurvey
             })
-            console.log("Existe el survey", surveyExists)
             if (surveyExists) return res.status(400).json({ message: "Ya existe una encuesta para esta fecha y asistencia." })
 
 
@@ -55,8 +54,6 @@ const surveyController = {
                 workEnvironment: newWorkEnvironment._id,
                 comments,
             })
-            console.log("Como es el newSurvey", newSurvey)
-
 
             newCategory.surveyId = newSurvey._id
             await newCategory.save()
