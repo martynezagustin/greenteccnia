@@ -20,7 +20,7 @@ const sendMailOfSuspiciousLogin = async function (email, device, code = null) {
         if (code) {
             htmlContent += `<h2 style="color: green;font-family: Poppins; text-align: center; font-size: 2.5rem">Tu código de autenticación multifactor</h2>
               <h3 style="color:black; text-align:center; font-size: 4rem; font-family: Poppins; background-color: #eeee; padding: 5px"; width: 50%>${code}</h3>
-              <p style="text-align: center; font-family: Poppins; letter-spacing: -1px">Por razones de seguridad, te recomendamos no compartir con nadie este código de autenticación. </p>
+              <p style="text-align: center; font-family: Poppins; letter-spacing: -0.2px">Por razones de seguridad, te recomendamos no compartir con nadie este código de autenticación. </p>
               </div>
         `
         }

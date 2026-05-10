@@ -41,4 +41,6 @@ RRHHObjectiveSnapshotSchema.pre('save', async function (next) {
     next()
 })
 
+RRHHObjectiveSnapshotSchema.index({enterpriseId: 1, objectiveId: 1, createdAt: -1})
+
 module.exports = mongoose.model('RRHHObjectiveSnapshot', RRHHObjectiveSnapshotSchema)

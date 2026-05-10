@@ -1,19 +1,20 @@
 const RRHHObjective = require('../../../../models/rrhh/objectivesSubSoftware/objective/RRHHObjectiveModel')
 const ProgressSnapshot = require('../../../../models/rrhh/objectivesSubSoftware/objective/progress/progressSnapshotModel')
 const RRHHObjectiveSnapshotService = require('../RRHHObjectiveSnapshotService')
-const Clasification = require('../../../../models/rrhh/objectivesSubSoftware/clasificationObjectiveModel')
 const { validatePeriod } = require('../utils/handlerDates')
 const Checklist = require('../../../../models/rrhh/objectivesSubSoftware/objective/checklist/checklistModel')
+const Classification = require('../../../../models/rrhh/objectivesSubSoftware/classificationObjectiveModel')
+const mongoose = require('mongoose')
 
 const RRHHObjectiveService = {
     createObjective: async function (data, user, enterpriseId) {
         try {
             //1️⃣ clasificación
-            const clasification = data.clasification
-            const existsClasification = await Clasification.findOne({ name: clasification })
-            if (!existsClasification) return { error: 'No se encuentra la clasificación.', code: 404 }
+            const classification = data.classification
+            const existsClassification = await Classification.findOne({ name: classification })
+            if (!existsClassification) return { error: 'No se encuentra la clasificación.', code: 404 }
             const checklist = data.checklist
-            const dataObjective = { ...data, enterpriseId: enterpriseId, createdBy: user._id, clasification: existsClasification._id, checklist: [] }
+            const dataObjective = { ...data, enterpriseId: enterpriseId, createdBy: user._id, classification: existsClassification._id, checklist: [] }
             const newRRHHObjective = await RRHHObjective.create(dataObjective)
             for (const task of checklist) {
                 await Checklist.create({ ...task, objectiveId: newRRHHObjective._id })
@@ -245,9 +246,9 @@ const RRHHObjectiveService = {
             return { error: `Ha ocurrido un error de servidor: ${error.message}.`, code: 500 }
         }
     },
-    getObjectivesByClasification: async function (enterpriseId, clasification) {
+    getObjectivesByClassification: async function (enterpriseId, classification) {
         try {
-            const objective = await RRHHObjective.find({ enterpriseId, clasification })
+            const objective = await RRHHObjective.find({ enterpriseId, classification })
             if (!objective) return { error: 'No se ha encontrado el objetivo RRHH filtrado por clasificación. Vuelva a intentarlo.', code: 404 }
             return objective
         } catch (error) {
@@ -267,7 +268,7 @@ const RRHHObjectiveService = {
     printDashboardObjectives: async function (enterpriseId) {
         try {
             const result = await RRHHObjective.aggregate([
-                { $match: { enterpriseId: enterpriseId } },
+                { $match: { enterpriseId: new mongoose.Types.ObjectId(enterpriseId) } },
                 {
                     $lookup: {
                         from: 'checklists',
@@ -294,7 +295,7 @@ const RRHHObjectiveService = {
                 //Progreso individual
                 {
                     $addFields: {
-                        progress: {
+                        progressPerObjective: {
                             $cond: [
                                 { $eq: ['$totalTasks', 0] },
                                 0,
@@ -375,11 +376,51 @@ const RRHHObjectiveService = {
                         ],
                         objectives: [
                             { $project: { tasks: 0 } }
+                        ],
+                        classificationStats: [
+                            {
+                                $group: {
+                                    _id: '$classification',
+                                    count: { $sum: 1 },
+                                    avgProgress: { $avg: '$progress' },
+                                }
+                            },
+                            {
+                                $lookup: {
+                                    from: 'classifications',
+                                    foreignField: '_id',
+                                    localField: '_id',
+                                    as: 'classificationData'
+                                }
+                            },
+                            {
+                                $unwind: { path: "$classificationData", preserveNullAndEmptyArrays: true }
+                            },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    clasificationId: '$_id',
+                                    name: {$ifNull:['$classificationData.name', 'Sin clasificación']},
+                                    value: '$count',
+                                    avgProgress: { $round: [{ $ifNull: ['$avgProgress', 0] }, 1] }
+                                }
+                            },
+                            {
+                                $sort: {
+                                    value: -1
+                                }
+                            }
                         ]
                     }
                 },
-
             ])
+            const resultadoDOS = await RRHHObjective.find(
+                { classification: new mongoose.Types.ObjectId('69a4eb56fabaa63477dd3b66') },
+                { title: 1, progress: 1 }
+            )
+            console.log('El debuggerrrr', resultadoDOS);
+            console.log('Resultado general', result)
+            console.log('Resultado', result[0].classificationStats)
             //primero, fechas
             const now = new Date()
             const firstDateMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -398,8 +439,11 @@ const RRHHObjectiveService = {
             //traemos los datos del último objetivo AGREGADO
             const lastObjectiveAggregated = await RRHHObjective.findOne().sort({ createdAt: -1 })
             //ahora, los últimos SIETE snapshots
-            const lastSevenSnapshots = await RRHHObjectiveSnapshotService.getSnapshotsByObjective(lastObjectiveAggregated._id, enterpriseId, 7) || []
-
+            let lastSevenSnapshots
+            if (lastObjectiveAggregated) {
+                lastSevenSnapshots = await RRHHObjectiveSnapshotService.getSnapshotsByObjective(lastObjectiveAggregated._id, enterpriseId, 7)
+            }
+            console.log('El seven last snapshot perro', lastSevenSnapshots)
             const actualProgress = {
                 value: overallProgress[overallProgress.length - 1],
                 color: overallProgress[overallProgress.length - 1] <= 50 ? '#ff0000' : overallProgress[overallProgress.length - 1] < 60 && overallProgress[overallProgress.length - 1] >= 50 ? '#905600' : overallProgress[overallProgress.length - 1] <= 75 && overallProgress[overallProgress.length - 1] >= 60 ? '#7f7418' : overallProgress[overallProgress.length - 1] <= 75 && overallProgress[overallProgress.length - 1] >= 75 && overallProgress[overallProgress.length - 1] <= 85 ? '#608444' : '#258332',
@@ -428,36 +472,51 @@ const RRHHObjectiveService = {
                     type: 'datetime'
                 }
             }
-            const lastObjectiveOrquest = {
-                evolutionLastObjectiveAggregated: {
-                    series: [
-                        {
-                            name: `Progreso en la fecha`,
-                            data: lastSevenSnapshots.length > 0 ? lastSevenSnapshots.map(s => ({
-                                x: new Date(s.createdAt).toISOString().split('T')[0],
-                                y: Number(s.progress).toFixed(1)
-                            })) : []
-                        }
-                    ]
-                },
-                color: lastObjectiveAggregated.progress < 50 ? 'red' : lastObjectiveAggregated.progress > 50 && lastObjectiveAggregated.progress <= 60 ? '#aa6600' : lastObjectiveAggregated.progress <= 75 && lastObjectiveAggregated.progress >= 60 ? '#7f7418' : lastObjectiveAggregated.progress <= 75 && lastObjectiveAggregated.progress >= 75 && lastObjectiveAggregated.progress <= 85 ? '#608444' : '#258332',
-                //valor actual
-                actualProgressLastObjectiveAggregated: lastObjectiveAggregated.progress
+            //el gráfico treemap
+            const treemap = {
+                series: [{
+                    data: result[0].classificationStats.map((c) => ({
+                        x: c.name,
+                        y: c.value,
+                        avgProgress: c.avgProgress
+                    }))
+                }]
             }
+            console.log(treemap.series)
+            let lastObjectiveOrquest
+            if (lastObjectiveAggregated) {
+                lastObjectiveOrquest = {
+                    evolutionLastObjectiveAggregated: {
+                        series: [
+                            {
+                                name: `Progreso en la fecha`,
+                                data: lastSevenSnapshots.length > 0 ? lastSevenSnapshots.map(s => ({
+                                    x: new Date(s.createdAt).toISOString().split('T')[0],
+                                    y: Number(s.progress).toFixed(1)
+                                })) : []
+                            }
+                        ]
+                    },
+                    color: lastObjectiveAggregated.progress < 50 ? 'red' : lastObjectiveAggregated.progress > 50 && lastObjectiveAggregated.progress <= 60 ? '#aa6600' : lastObjectiveAggregated.progress <= 75 && lastObjectiveAggregated.progress >= 60 ? '#7f7418' : lastObjectiveAggregated.progress <= 75 && lastObjectiveAggregated.progress >= 75 && lastObjectiveAggregated.progress <= 85 ? '#608444' : '#258332',
+                    //valor actual
+                    actualProgressLastObjectiveAggregated: lastObjectiveAggregated.progress
+                }
 
-            return { 
-                metrics: result[0].metrics, 
-                composition: result[0].composition, 
-                objectives: result[0].objectives, 
-                evolutionStatusObjectives, 
-                overallProgress: { 
-                    evolutionOverallProgress, 
-                    actualProgress: actualProgress 
-                }, 
-                lastObjective: { 
-                    evolutionLastObjectiveAggregated: lastObjectiveOrquest.evolutionLastObjectiveAggregated, actualProgress: lastObjectiveOrquest.actualProgressLastObjectiveAggregated, 
-                    color: lastObjectiveOrquest.color 
-                } 
+            }
+            return {
+                metrics: result[0].metrics,
+                composition: result[0].composition || [],
+                objectives: result[0].objectives || [],
+                evolutionStatusObjectives,
+                overallProgress: {
+                    evolutionOverallProgress,
+                    actualProgress: actualProgress
+                },
+                lastObjective: lastObjectiveAggregated ? {
+                    evolutionLastObjectiveAggregated: lastObjectiveOrquest.evolutionLastObjectiveAggregated || [], actualProgress: lastObjectiveOrquest.actualProgressLastObjectiveAggregated || null,
+                    color: lastObjectiveOrquest.color || undefined
+                } : {},
+                mostUsedClassifications: treemap || []
             }
         } catch (error) {
             console.error(error)

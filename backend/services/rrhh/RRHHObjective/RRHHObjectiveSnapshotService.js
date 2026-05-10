@@ -22,8 +22,10 @@ const RRHHObjectiveSnapshotService = {
     },
     getSnapshotsByObjective: async function (objectiveId, enterpriseId, limit) {
         try {
-            const allSnapshots = await RRHHObjectiveSnapshot.find({ objectiveId: objectiveId, enterpriseId: enterpriseId }).sort({ createdAt: -1 }).limit(limit ? limit : 50).lean()
-            if (!allSnapshots || allSnapshots.length === 0) return { error: 'No existen registros de snapshots asociados al objetivo', code: 404 }
+            console.log('Last objetive en el servicio', objectiveId)
+            const allSnapshots = await RRHHObjectiveSnapshot.find({ objectiveId: objectiveId, enterpriseId: enterpriseId }).sort({ createdAt: -1 }).limit(limit || 50).lean()
+            console.log('los all snapshots que NUNCA LLEGAN', allSnapshots)
+            if (allSnapshots.length === 0) return { error: 'No existen registros de snapshots asociados al objetivo', code: 404 }
             return allSnapshots
         } catch (error) {
             return { error: `Error al obtener los snapshots: ${error.message}`, code: 500 };
