@@ -188,7 +188,7 @@ const userController = {
                     browser: newSuspiciousLogin.browser,
                     deviceType: newSuspiciousLogin.device,
                     os: newSuspiciousLogin.os
-                }), { httpOnly: true, secure: true, sameSite: "Lax", maxAge: 1000 * 60 * 60 })
+                }), { httpOnly: false, secure: false, sameSite: "Lax", maxAge: 1000 * 60 * 60 })
                 console.log(userToLogin)
                 await sendMailOfSuspiciousLogin(userToLogin.email, newSuspiciousLogin, twoFACode)
             }
@@ -198,6 +198,7 @@ const userController = {
             if (userToLogin.security.twoFA.twoFAActived && deviceExists && deviceExists.isTrusted) await sendTwoFACode(userToLogin.email, twoFACode, "Se ha solicitado un inicio de sesión.", "Estás por iniciar sesión, así que deberás ingresar el código de autenticación que aparece a continuación.")
             return res.status(200).json({ message: "Se ha enviado un código 2FA a tu correo. Chequéalo y verifica tu inicio de sesión.", warn: !deviceExists || !deviceExists.isTrusted ? "El dispositivo en el que deseas ingresar es sospechoso." : null, userId })
         } catch (error) {
+            console.error("Ocurriò el siguiente error:", error)
             return res.status(500).json({ error: "Ha ocurrido un error de servidor: " + error })
         }
     },

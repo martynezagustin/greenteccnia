@@ -6,7 +6,8 @@ const validateLogin = async function (req, res, user) {
     try {
         const { isMobile, isTablet, isDesktop, browser, os } = req.useragent
         req.token = jwt.sign({ userId: user._id }, process.env.SECRET_KEY, { expiresIn: "7d" })
-        res.cookie("token", req.token, { httpOnly: false, secure: false, sameSite: "Lax", maxAge: 1000 * 60 * 60 * 24 * 7 })
+        res.cookie("token", req.token, { httpOnly: false, secure: false, sameSite: "lax", maxAge: 1000 * 60 * 60 * 24 * 7 })
+        console.log("Imprimime el token", req.token)
         const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress
         let deviceType = isMobile ? "Móvil" : isTablet ? "Tablet" : "Escritorio";
         const device = await Device.findOneAndUpdate(
