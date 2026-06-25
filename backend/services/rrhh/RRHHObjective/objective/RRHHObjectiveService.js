@@ -13,12 +13,23 @@ const RRHHObjectiveService = {
             const classification = data.classification
             const existsClassification = await Classification.findOne({ name: classification })
             if (!existsClassification) return { error: 'No se encuentra la clasificación.', code: 404 }
+            
             const checklist = data.checklist
+            
+            console.log('Cómo llega el checklist al service', checklist)
+
             const dataObjective = { ...data, enterpriseId: enterpriseId, createdBy: user._id, classification: existsClassification._id, checklist: [] }
+
             const newRRHHObjective = await RRHHObjective.create(dataObjective)
-            for (const task of checklist) {
-                await Checklist.create({ ...task, objectiveId: newRRHHObjective._id })
+           
+            if(checklist && checklist.length > 0){
+                const taskToCreate = checklist.map(t => ({...t, objectiveId: newRRHHObjective._id,enterpriseId}))
+                await Checklist.insertMany(taskToCreate)
+                //agregamos las tareas creadas al objetivo para popular el campo checklist del objetivo
+                const createdTasks = await Checklist.find({ objectiveId: newRRHHObjective._id })
+                newRRHHObjective.checklist = createdTasks.map(t => t._id)
             }
+
             //calculamos el progreso
             if (checklist) {
                 const tasks = checklist.length
@@ -399,8 +410,8 @@ const RRHHObjectiveService = {
                             {
                                 $project: {
                                     _id: 0,
-                                    clasificationId: '$_id',
-                                    name: {$ifNull:['$classificationData.name', 'Sin clasificación']},
+                                    classificationId: '$_id',
+                                    name: { $ifNull: ['$classificationData.name', 'Sin clasificación'] },
                                     value: '$count',
                                     avgProgress: { $round: [{ $ifNull: ['$avgProgress', 0] }, 1] }
                                 }
@@ -418,9 +429,6 @@ const RRHHObjectiveService = {
                 { classification: new mongoose.Types.ObjectId('69a4eb56fabaa63477dd3b66') },
                 { title: 1, progress: 1 }
             )
-            console.log('El debuggerrrr', resultadoDOS);
-            console.log('Resultado general', result)
-            console.log('Resultado', result[0].classificationStats)
             //primero, fechas
             const now = new Date()
             const firstDateMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -437,13 +445,12 @@ const RRHHObjectiveService = {
             const overallProgress = snapshotsAccomplished.map(s => Number(s.overallProgress.toFixed(2)))
             //------------------------------------------
             //traemos los datos del último objetivo AGREGADO
-            const lastObjectiveAggregated = await RRHHObjective.findOne().sort({ createdAt: -1 })
+            const lastObjectiveAggregated = await RRHHObjective.findOne().sort({ createdAt: -1 }).populate("checklist").lean()
             //ahora, los últimos SIETE snapshots
             let lastSevenSnapshots
             if (lastObjectiveAggregated) {
                 lastSevenSnapshots = await RRHHObjectiveSnapshotService.getSnapshotsByObjective(lastObjectiveAggregated._id, enterpriseId, 7)
             }
-            console.log('El seven last snapshot perro', lastSevenSnapshots)
             const actualProgress = {
                 value: overallProgress[overallProgress.length - 1],
                 color: overallProgress[overallProgress.length - 1] <= 50 ? '#ff0000' : overallProgress[overallProgress.length - 1] < 60 && overallProgress[overallProgress.length - 1] >= 50 ? '#905600' : overallProgress[overallProgress.length - 1] <= 75 && overallProgress[overallProgress.length - 1] >= 60 ? '#7f7418' : overallProgress[overallProgress.length - 1] <= 75 && overallProgress[overallProgress.length - 1] >= 75 && overallProgress[overallProgress.length - 1] <= 85 ? '#608444' : '#258332',
@@ -482,7 +489,7 @@ const RRHHObjectiveService = {
                     }))
                 }]
             }
-            console.log(treemap.series)
+            console.log("Che, el treemap series", treemap)
             let lastObjectiveOrquest
             if (lastObjectiveAggregated) {
                 lastObjectiveOrquest = {
@@ -516,6 +523,7 @@ const RRHHObjectiveService = {
                     evolutionLastObjectiveAggregated: lastObjectiveOrquest.evolutionLastObjectiveAggregated || [], actualProgress: lastObjectiveOrquest.actualProgressLastObjectiveAggregated || null,
                     color: lastObjectiveOrquest.color || undefined
                 } : {},
+                lastObjectiveInfo: lastObjectiveAggregated || {},
                 mostUsedClassifications: treemap || []
             }
         } catch (error) {

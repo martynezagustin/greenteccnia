@@ -4,6 +4,7 @@ const RRHHObjectiveSchema = new mongoose.Schema({
     enterpriseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Enterprise', required: true },
     title: { type: String, required: true },
     description: { type: String, required: true },
+    checklist: [{type: mongoose.Schema.Types.ObjectId, ref:"Checklist"}],
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     classification: { type: mongoose.Schema.Types.ObjectId, ref: 'Classification' },
